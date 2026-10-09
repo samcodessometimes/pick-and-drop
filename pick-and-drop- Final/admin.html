@@ -1,0 +1,19 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Admin | Pick & Drop</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/styles.css"></head>
+<body class="admin" style="padding-bottom:24px">
+<div class="top"><a href="index.html">Home</a><h1>Admin</h1><button id="signout" class="linkbtn" type="button">Sign out</button></div>
+<main>
+  <div id="gate"><p class="note">Loading...</p></div>
+  <div id="app" hidden>
+    <div class="atabs" role="tablist" aria-label="Admin sections">
+      <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+      <button role="tab" data-tab="orders" aria-selected="false">Orders</button>
+      <button role="tab" data-tab="merchants" aria-selected="false">Merchants</button>
+      <button role="tab" data-tab="riders" aria-selected="false">Riders</button>
+    </div>
+    <section id="view" aria-live="polite"></section>
+  </div>
+</main>
+<dialog id="panel"><div class="phead"><button id="pclose" class="linkbtn" type="button">Close</button></div><div class="pbody"></div></dialog>
+<script type="module" src="js/admin.js"></script></body></html>
