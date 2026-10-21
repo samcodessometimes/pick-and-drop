@@ -26,3 +26,6 @@ You can send me the folder and licences.csv and I will run these steps and test 
 - A missing or failed picture is replaced by a fallback image, and the page never shows a broken image icon.
 - Alt text on every picture. A stock photo is described as an "illustrative photo" and labelled "Stock photo" with "does not show the real premises".
 - Demo and not-partnered labels are unchanged.
+
+## Shops without their own picture
+`coverFor()` in `js/images.js` shows a representative stock photo (chosen from shop type and name) for any shop whose cover is empty or an illustration. It is display only: no database record is changed, the picture is labelled "Stock photo", and removing the function restores the old behaviour. A real photo set on a merchant (an https image or a file in images/photos) always wins.

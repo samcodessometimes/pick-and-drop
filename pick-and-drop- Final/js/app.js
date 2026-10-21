@@ -1,6 +1,6 @@
 import { db, configured } from './supabase.js';
 import { addItem, getCart, setQty, cartCount, cartSubtotal } from './cart.js';
-import { img, isIllustration, pictureBadge, isPhoto } from './images.js';
+import { img, isIllustration, pictureBadge, isPhoto, coverFor } from './images.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -12,13 +12,13 @@ function eta(m) {
   return `${m.prep_time_min}${m.prep_time_max ? '-' + m.prep_time_max : ''} mins`;
 }
 
-const credit = m => (isIllustration(m.image_credit) ? ' (illustration)' : pictureBadge(m.image_credit) ? ` (${pictureBadge(m.image_credit).toLowerCase()})` : '');
+const credit = m => { const c = coverFor(m).credit; return isIllustration(c) ? ' (illustration)' : pictureBadge(c) ? ` (${pictureBadge(c).toLowerCase()})` : ''; };
 const alt = p => `${p.name}, ${isPhoto(p.image_url) ? 'illustrative photo' : 'illustrative image'}`;
 
 function merchantCard(m) {
-  const pic = img(m.cover_url, `${m.name}${credit(m)}`, 'store', { w: 400, h: 300, sizes: '(max-width: 600px) 85vw, 400px' });
+  const cv = coverFor(m), pic = img(cv.url, `${m.name}${credit(m)}`, 'store', { w: 400, h: 300, sizes: '(max-width: 600px) 85vw, 400px' });
   return `<a class="card" href="merchant.html?slug=${encodeURIComponent(m.slug)}">
-    <div class="card-img">${pic}<span class="tag ${m.is_partner ? 'tag-partner' : ''}">${esc(m.partner_label)}</span>${pictureBadge(m.image_credit) ? `<span class="ill">${pictureBadge(m.image_credit)}</span>` : ''}</div>
+    <div class="card-img">${pic}<span class="tag ${m.is_partner ? 'tag-partner' : ''}">${esc(m.partner_label)}</span>${pictureBadge(cv.credit) ? `<span class="ill">${pictureBadge(cv.credit)}</span>` : ''}</div>
     <div class="card-body"><h3>${esc(m.name)}</h3>
       <p>${m.rating ? '★ ' + Number(m.rating).toFixed(1) : 'New'}${eta(m) ? ' · ' + eta(m) : ''}</p>
       <p>${esc(m.neighbourhood || m.service_area_name)}${m.delivery_fee > 0 ? ' · ' + money(m.delivery_fee) + ' delivery' : ''}</p></div></a>`;
@@ -65,9 +65,10 @@ async function merchantPage() {
   if (!m.is_partner) $('#m-demo').hidden = false;
   const cover = $('#m-cover');
   if (cover) {
-    cover.innerHTML = img(m.cover_url, `${m.name}${credit(m)}`, 'store', { w: 800, h: 300, eager: true, sizes: '(max-width: 840px) 100vw, 800px' }) +
-      (isIllustration(m.image_credit) ? '<p class="credit">Illustration. It does not show the real premises.</p>'
-        : pictureBadge(m.image_credit) ? `<p class="credit">${pictureBadge(m.image_credit)}, shown for illustration. It does not show the real premises. <a href="credits.html">Picture credits</a></p>` : '');
+    const cv = coverFor(m);
+    cover.innerHTML = img(cv.url, `${m.name}${credit(m)}`, 'store', { w: 800, h: 300, eager: true, sizes: '(max-width: 840px) 100vw, 800px' }) +
+      (isIllustration(cv.credit) ? '<p class="credit">Illustration. It does not show the real premises.</p>'
+        : pictureBadge(cv.credit) ? `<p class="credit">${pictureBadge(cv.credit)}, shown for illustration. It does not show the real premises. <a href="credits.html">Picture credits</a></p>` : '');
     cover.hidden = false;
   }
 

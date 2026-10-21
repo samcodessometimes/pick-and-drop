@@ -142,7 +142,7 @@ await t('home page lists demo restaurants and grocers with pictures that actuall
   ok((await cust.page.locator('#groceries .card').count()) >= 2, 'groceries');
   const broken = await imagesOk(cust.page); eq(broken.length, 0, 'broken images ' + broken.join(','));
   ok(await cust.page.locator('#restaurants .card img[alt*="Demo Jollof Kitchen"]').count() === 1, 'descriptive alt text');
-  ok((await cust.page.textContent('body')).includes('Illustration'), 'illustration label');
+  ok(/Stock photo|Illustration/.test(await cust.page.textContent('body')), 'picture label (stock photo or illustration)');
   await shot(cust, '01-home-mobile');
 });
 await t('every listing is labelled demo / not partnered, never as a partner', async () => {
@@ -173,6 +173,21 @@ if (fs.existsSync(path.join(ROOT, 'images/photos')) && fs.readdirSync(path.join(
     await shot(cust, '02b-menu-photo-mobile');
   });
 } else console.log('  SKIP  photograph checks: no photographs are installed in images/photos yet');
+await t('every shop on the home page shows a photograph (none are left with the plain placeholder), on desktop too', async () => {
+  const d = await newUser('home-desktop', DESKTOP);
+  try {
+    await d.page.goto('/'); await d.page.waitForSelector('#restaurants .card'); await d.page.waitForSelector('#groceries .card');
+    await imagesOk(d.page, 6000);
+    const cards = await d.page.evaluate(() => [...document.querySelectorAll('.card')].map(c => ({ name: c.querySelector('h3').textContent, src: c.querySelector('img').currentSrc, ok: c.querySelector('img').naturalWidth > 0 })));
+    ok(cards.length >= 6, 'too few shops listed: ' + cards.length);
+    ok(cards.every(c => c.ok), 'a shop picture failed to load');
+    const plain = cards.filter(c => /fallback\/store\.svg/.test(c.src)).map(c => c.name);
+    eq(plain.length, 0, 'shops still showing the plain placeholder: ' + plain.join(', '));
+    const drawn = cards.filter(c => /\.svg/.test(c.src)).map(c => c.name); eq(drawn.length, 0, 'shops still showing a drawing, not a photo: ' + drawn.join(', '));
+    ok(await d.page.locator('.hero h1').isVisible(), 'hero headline missing');
+    await shot(d, '01b-home-desktop');
+  } finally { await d.context.close(); }
+});
 await t('a missing picture is replaced by the fallback image (no broken image icon)', async () => {
   const gone = /\/images\/(meals|photos)\//; await cust.context.route(gone, r => r.fulfill({ status: 404, body: 'gone' }));      // every dish picture, illustration or photograph, is missing
   await cust.page.goto('/merchant.html?slug=demo-jollof-kitchen'); await cust.page.waitForSelector('.item [data-add]');

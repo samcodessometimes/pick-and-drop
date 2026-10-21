@@ -30,3 +30,21 @@ export const isIllustration = credit => /illustration/i.test(credit || '');
 // Small label on a cover: a drawing says Illustration, a stock photo says Stock photo. Never implies the real premises.
 export const pictureBadge = credit => (isIllustration(credit) ? 'Illustration' : /ai-generated/i.test(credit || '') ? 'AI image' : /stock photo/i.test(credit || '') ? 'Stock photo' : '');
 export const isPhoto = url => PHOTO.test(url || '');
+
+// A shop with no picture of its own gets a representative stock photo chosen from its type and name.
+// This is display only: nothing is written to the database, and the picture is always labelled as stock.
+const GENERIC_CREDIT = 'Stock photo, representative image. Not a photograph of the business or its premises.';
+const COVERS = { kitchen: 'images/photos/restaurant-kitchen-800.jpg', fastfood: 'images/photos/restaurant-fastfood-800.jpg', grill: 'images/photos/restaurant-grill-800.jpg',
+  market: 'images/photos/grocery-market-800.jpg', supermarket: 'images/photos/grocery-supermarket-800.jpg' };
+export function coverFor(m) {
+  // A real photograph (our own, or an https image a merchant supplied) is kept. Illustrations and empty covers are replaced.
+  if (safe(m.cover_url) && !/\.svg(\?|$)/i.test(m.cover_url) && !isIllustration(m.image_credit)) return { url: m.cover_url, credit: m.image_credit || '' };
+  const name = String(m.name || '').toLowerCase(), slug = String(m.slug || '');
+  let key;
+  if (m.merchant_type === 'GROCERY') key = /super|mart|store|shop|mini|corner|general|pharm/.test(name) ? 'supermarket' : 'market';
+  else if (/burger|pizza|fast|chip|fries|sandwich|wrap|chicken & chips|nugget/.test(name)) key = 'fastfood';
+  else if (/grill|bbq|barbe|suya|roast|chicken|kebab|steak|braai/.test(name)) key = 'grill';
+  else if (/kitchen|cafe|caf\u00e9|restaurant|food|rice|soup|kitchen|jollof|fufu/.test(name)) key = 'kitchen';
+  else { let h = 0; for (const c of slug || name) h = (h * 31 + c.charCodeAt(0)) >>> 0; key = ['kitchen', 'fastfood', 'grill'][h % 3]; }
+  return { url: COVERS[key], credit: GENERIC_CREDIT };
+}
