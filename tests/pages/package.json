@@ -1,0 +1,8 @@
+{
+  "name": "pick-and-drop-page-tests",
+  "private": true,
+  "type": "module",
+  "description": "Runs the real page JavaScript in jsdom against PostgREST. jsdom is not a browser.",
+  "scripts": { "test": "node pages.test.mjs" },
+  "devDependencies": { "@supabase/supabase-js": "2.45.4", "esbuild": "^0.25.0", "jsdom": "^26.0.0" }
+}
