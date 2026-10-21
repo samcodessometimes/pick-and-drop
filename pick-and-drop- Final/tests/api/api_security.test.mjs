@@ -138,9 +138,9 @@ await t('total = server price x qty + delivery fee (230 + 20)', async () => {
   const o = rows(await get(`/orders?select=subtotal,delivery_fee,total&id=eq.${o1}`, T.custA))[0];
   eq(Number(o.subtotal), 230, 'subtotal'); eq(Number(o.delivery_fee), 20, 'fee'); eq(Number(o.total), 250, 'total');
 });
-await t('payment recorded as simulated PAID with the method and reference', async () => {
+await t('payment recorded as SIMULATED (never PAID) with the method, unverified', async () => {
   const p = rows(await get(`/payments?select=method,status,is_simulated,provider,amount&order_id=eq.${o1}`, T.custA))[0];
-  eq(p.status, 'PAID'); ok(p.is_simulated === true, 'not simulated'); eq(p.method, 'ORANGE_MONEY'); eq(Number(p.amount), 250);
+  eq(p.status, 'SIMULATED'); ok(p.is_simulated === true, 'not simulated'); eq(p.method, 'ORANGE_MONEY'); eq(Number(p.amount), 250);
 });
 await t('order items snapshot name, unit price and quantity', async () => {
   const it = rows(await get(`/order_items?select=name,unit_price,quantity,line_total&order_id=eq.${o1}&order=name`, T.custA));
@@ -400,6 +400,80 @@ await t('forged or malformed tokens are rejected', async () => {
 await t('user-editable metadata cannot grant admin (user_metadata.role, top-level role claim)', async () => {
   ok(failed(await rpc('admin_overview', {}, T.attacker)), 'user_metadata admin worked'); ok(failed(await rpc('admin_overview', {}, T.custA)), 'customer');
   ok(failed(await rpc('admin_overview', {}, sign({ sub: U('e1'), role: 'admin' }))), 'role=admin claim worked'); eq(rows(await get('/orders?select=id', T.attacker)).length, 0, 'attacker sees orders');
+});
+
+// =======================================================================
+group('F. Payments, merchant dashboard, settlements and staff linking');
+const payOf = id => sql(`select method||'|'||status||'|'||is_simulated||'|'||(verified_at is null) from payments where order_id='${id}'`);
+const placeCod = (tok = T.custA, items = [item(prod['TEST Rice'], 1)]) => place(tok, items, { method: 'CASH_ON_DELIVERY', txn: null });
+await t('cash on delivery: order placed with PENDING, real (not simulated) payment and no reference needed', async () => {
+  const r = await placeCod(); ok(!failed(r), JSON.stringify(r.body)); eq(payOf(r.body.order_id), 'CASH_ON_DELIVERY|PENDING|false|true');
+});
+await t('mobile money demo order is SIMULATED and never verified; a customer cannot mark any payment paid', async () => {
+  const o = await newOrder(); eq(payOf(o), 'ORANGE_MONEY|SIMULATED|true|true');
+  ok(await writeBlocked('PATCH', `/payments?order_id=eq.${o}`, T.custA, { status: 'PAID' }), 'customer updated payment');
+  ok(failed(await rpc('admin_set_payment_status', { p_order_id: o, p_status: 'PAID', p_note: 'x' }, T.custA)), 'customer set payment status');
+  ok(failed(await rpc('provider_confirm_payment', { p_order_id: o, p_provider_ref: 'X' }, T.admin)), 'admin (not service role) called the provider hook');
+  ok(failed(await rpc('provider_confirm_payment', { p_order_id: o, p_provider_ref: 'X' }, T.anon)), 'anon called the provider hook');
+  eq(payOf(o), 'ORANGE_MONEY|SIMULATED|true|true', 'payment changed');
+});
+await t('cash order cannot be delivered until the rider records cash, even with the right PIN', async () => {
+  const r = await placeCod(); const o = r.body.order_id; await toAtCustomer(o);
+  const early = await rpc('verify_delivery_pin', { p_order_id: o, p_pin: pinOf(o) }, T.rider); ok(failed(early), 'delivered without cash'); eq(orderRow(o).split('|')[0], 'READY_FOR_PICKUP', 'status moved');
+  ok(failed(await rpc('record_cash_collected', { p_order_id: o }, T.riderOther)), 'another rider recorded cash');
+  ok(failed(await rpc('record_cash_collected', { p_order_id: o }, T.custA)), 'customer recorded cash');
+  ok(!failed(await rpc('record_cash_collected', { p_order_id: o }, T.rider)), 'assigned rider could not record cash');
+  eq(sql(`select status from payments where order_id='${o}'`), 'PAID');
+  const v = await rpc('verify_delivery_pin', { p_order_id: o, p_pin: pinOf(o) }, T.rider); ok(!failed(v) && v.body.ok === true, JSON.stringify(v.body)); eq(orderRow(o).split('|')[0], 'DELIVERED');
+});
+await t('financials are computed by the database: commission pending until admin sets terms; amounts freeze once owed', async () => {
+  const o = sql(`select order_id from order_financials where settlement_status='PENDING_TERMS' limit 1`); ok(o, 'no PENDING_TERMS row');
+  const f = sql(`select subtotal||'|'||delivery_fee||'|'||coalesce(commission_bps::text,'null')||'|'||coalesce(merchant_net::text,'null') from order_financials where order_id='${o}'`); ok(/\|null\|null$/.test(f), f);
+  ok(failed(await rpc('admin_save_settings', { p_commission_bps: 1000, p_rider_pay: 15 }, T.merchG)), 'merchant saved settings');
+  ok(!failed(await rpc('admin_save_settings', { p_commission_bps: 1000, p_rider_pay: 15 }, T.admin)), 'admin could not save settings');
+  const g = sql(`select settlement_status||'|'||merchant_net from order_financials where order_id='${o}'`); ok(/^OWED\|/.test(g), g);
+});
+await t('merchant sees only own orders in merchant_dashboard; another shop and customers are refused', async () => {
+  const mine = await rpc('merchant_dashboard', { p_merchant_id: G, p_limit: 100 }, T.merchG); ok(!failed(mine), JSON.stringify(mine.body).slice(0, 100));
+  ok(mine.body.orders.length > 0 && mine.body.orders.every(x => sql(`select merchant_id from orders where id='${x.id}'`) === G), 'foreign order in dashboard');
+  ok(mine.body.orders.every(x => !('pin' in x) && !JSON.stringify(x).includes('"pin"')), 'PIN in merchant data');
+  ok(failed(await rpc('merchant_dashboard', { p_merchant_id: S, p_limit: 10 }, T.merchG)), 'read another shop');
+  ok(failed(await rpc('merchant_dashboard', { p_merchant_id: G, p_limit: 10 }, T.custA)), 'customer read dashboard');
+  ok(failed(await rpc('merchant_dashboard', { p_merchant_id: G, p_limit: 10 }, T.anon)), 'anon read dashboard');
+});
+await t('rider_deliveries returns only the rider own orders and never the PIN', async () => {
+  const r = await rpc('rider_deliveries', {}, T.riderOther); ok(failed(r) || (Array.isArray(r.body?.orders ?? r.body) && (r.body.orders ?? r.body).length === 0), 'unlinked rider got orders');
+  const mine = await rpc('rider_deliveries', {}, T.rider); ok(!failed(mine), JSON.stringify(mine.body).slice(0, 100)); ok(!JSON.stringify(mine.body).includes('order_delivery_pins') && !/"pin"/.test(JSON.stringify(mine.body)), 'PIN exposed');
+  ok(failed(await rpc('rider_deliveries', {}, T.anon)), 'anon');
+});
+await t('merchant rejecting an order reverses the demo payment; cancelling a cash order voids it', async () => {
+  const o = await newOrder(); ok(!failed(await rpc('merchant_set_order_status', { p_order_id: o, p_action: 'REJECT' }, T.merchG)));
+  eq(payOf(o).split('|')[1], 'REFUNDED');
+  const c = (await placeCod()).body.order_id; ok(!failed(await rpc('merchant_set_order_status', { p_order_id: c, p_action: 'REJECT' }, T.merchG)));
+  ok(['CANCELLED', 'FAILED'].includes(payOf(c).split('|')[1]), payOf(c));
+});
+await t('admin overview, setup status, finance summary: admin only', async () => {
+  for (const fn of ['admin_overview', 'admin_setup_status', 'admin_finance_summary', 'admin_rider_load']) {
+    ok(!failed(await rpc(fn, {}, T.admin)), fn + ' failed for admin');
+    for (const tok of [T.anon, T.custA, T.merchG, T.rider, T.attacker]) ok(failed(await rpc(fn, {}, tok)), fn + ' callable by non-admin');
+  }
+  const ov = (await rpc('admin_overview', {}, T.admin)).body; eq(Number(ov.ops.total.demo) + Number(ov.ops.total.live), Number(sql('select count(*) from orders')), 'overview total differs from the database');
+});
+await t('staff linking: admin only, unknown email gives a clear error, no duplicate links, no admin escalation', async () => {
+  ok(failed(await rpc('admin_link_staff', { p_kind: 'MERCHANT', p_email: 'merchant-stmarys@test', p_target: G }, T.merchG)), 'merchant linked staff');
+  const bad = await rpc('admin_link_staff', { p_kind: 'MERCHANT', p_email: 'nobody@example.test', p_target: G }, T.admin); ok(failed(bad) && /No login/.test(JSON.stringify(bad.body)), JSON.stringify(bad.body));
+  const before = sql(`select count(*) from merchant_staff`);
+  ok(!failed(await rpc('admin_link_staff', { p_kind: 'MERCHANT', p_email: 'merchant-goodies@test', p_target: G }, T.admin)), 'relink same login'); eq(sql(`select count(*) from merchant_staff`), before, 'duplicate staff row');
+  ok(failed(await rpc('admin_link_staff', { p_kind: 'ADMIN', p_email: 'merchant-goodies@test', p_target: G }, T.admin)), 'admin kind accepted');
+  eq(sql(`select coalesce(raw_app_meta_data->>'role','none') from auth.users where id='${U('b1')}'`), 'none', 'merchant became admin');
+});
+await t('settlement and payout records: admin only; a record is not a money transfer and cannot be recorded twice', async () => {
+  ok(failed(await rpc('admin_record_merchant_settlement', { p_merchant_id: G, p_is_demo: true, p_reference: 'X-1', p_note: null }, T.merchG)), 'merchant recorded settlement');
+  const a = await rpc('admin_record_merchant_settlement', { p_merchant_id: G, p_is_demo: true, p_reference: 'DEMO-API-1', p_note: null }, T.admin); ok(!failed(a), JSON.stringify(a.body));
+  const b = await rpc('admin_record_merchant_settlement', { p_merchant_id: G, p_is_demo: true, p_reference: 'DEMO-API-2', p_note: null }, T.admin); ok(failed(b), 'same orders settled twice');
+  ok(await writeBlocked('PATCH', `/merchant_settlements?reference=eq.DEMO-API-1`, T.admin, { net_total: 1 }), 'settlement editable directly');
+  ok(await writeBlocked('POST', `/merchant_settlements`, T.merchG, { merchant_id: G, reference: 'self', net_total: 999, is_demo: true }), 'merchant inserted a settlement');
+  eq(rows(await get('/merchant_settlements?select=reference', T.merchS)).length, 0, 'other shop sees settlements');
 });
 
 // ---- report -----------------------------------------------------------

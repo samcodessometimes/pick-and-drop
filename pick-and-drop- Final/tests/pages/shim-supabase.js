@@ -31,7 +31,7 @@ const auth = {
   },
   signOut: async () => { globalThis.__TOKEN__ = null; return { error: null }; },
 };
-const channel = () => { const c = { on: () => c, subscribe: () => c }; return c; };
+const channel = () => { const c = { on: () => c, subscribe: cb => { try { cb?.('CHANNEL_ERROR'); } catch { /* none */ } return c; }, unsubscribe: () => {} }; return c; };
 export const db = new Proxy(client, {
-  get: (t, k) => (k === 'auth' ? auth : k === 'channel' ? channel : typeof t[k] === 'function' ? t[k].bind(t) : t[k]),
+  get: (t, k) => (k === 'auth' ? auth : k === 'channel' ? channel : k === 'removeChannel' ? (() => {}) : typeof t[k] === 'function' ? t[k].bind(t) : t[k]),
 });
