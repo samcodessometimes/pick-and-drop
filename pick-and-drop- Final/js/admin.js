@@ -34,7 +34,17 @@ document.querySelector('.atabs').addEventListener('click', e => {
 const user = await requireStaff(gate);
 if (user) {
   // The server decides: admin_overview raises for anyone without the admin claim.
-  const { error } = await db.rpc('admin_overview');
-  if (error) note(gate, 'This page is for Pick & Drop admins only. If you were just made an admin, sign out and sign in again.');
-  else { gate.hidden = true; app.hidden = false; select('overview'); }
+  // A refusal and a failed request are different problems, so they get different messages.
+  const check = async () => {
+    const { error } = await db.rpc('admin_overview');
+    if (!error) { gate.hidden = true; app.hidden = false; select('overview'); return; }
+    const msg = String(error.message || '');
+    if (/admin only/i.test(msg)) note(gate, 'This login is not an admin. If you were just made an admin, sign out and sign in again so the role reaches your session.');
+    else if (/jwt|expired|not authenticated/i.test(msg) || error.status === 401) note(gate, 'Your session has expired. Sign out and sign in again.');
+    else {
+      gate.innerHTML = '<p class="error" role="alert">Could not reach the database, so admin access could not be checked. This is not a permissions problem.</p><p><button class="btn" id="gretry" type="button">Try again</button></p>';
+      gate.querySelector('#gretry').addEventListener('click', () => { gate.innerHTML = '<p class="note">Checking...</p>'; check(); });
+    }
+  };
+  await check();
 }

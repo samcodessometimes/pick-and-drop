@@ -184,7 +184,7 @@ await t('every shop on the home page shows a photograph (none are left with the 
     const plain = cards.filter(c => /fallback\/store\.svg/.test(c.src)).map(c => c.name);
     eq(plain.length, 0, 'shops still showing the plain placeholder: ' + plain.join(', '));
     const drawn = cards.filter(c => /\.svg/.test(c.src)).map(c => c.name); eq(drawn.length, 0, 'shops still showing a drawing, not a photo: ' + drawn.join(', '));
-    ok(await d.page.locator('.hero h1').isVisible(), 'hero headline missing');
+    ok(await d.page.locator('.hero .brand').isVisible(), 'wordmark missing');
     await shot(d, '01b-home-desktop');
   } finally { await d.context.close(); }
 });
@@ -447,9 +447,19 @@ await t('admin overview and orders list reflect the final state', async () => {
 
 // =============== 7. ACCESS CONTROL IN THE BROWSER ===============
 console.log('\n7. Access control');
-await t('a signed-in merchant who opens the admin page gets "admins only" and no data', async () => {
-  await mer.page.goto('/admin.html'); await mer.page.waitForFunction(() => /admins only/.test(document.querySelector('#gate').textContent));
-  ok(/admins only/.test(await mer.page.textContent('#gate')), 'message'); ok(await mer.page.locator('#app').isHidden(), 'admin app hidden');
+await t('a signed-in merchant who opens the admin page is told this login is not an admin, and sees no data', async () => {
+  await mer.page.goto('/admin.html'); await mer.page.waitForFunction(() => /not an admin/.test(document.querySelector('#gate').textContent));
+  ok(/not an admin/.test(await mer.page.textContent('#gate')), 'message'); ok(await mer.page.locator('#app').isHidden(), 'admin app hidden');
+});
+await t('admin page: a failed database request says so (not "not an admin"), offers Try again, and recovers', async () => {
+  const u = await newUser('admin-err', DESKTOP); await login(u, 'admin@test', 'admin.html'); await u.page.waitForSelector('.setup');
+  const down = r => r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'connection problem' }) });
+  await u.context.route('**/rpc/admin_overview', down); await u.page.reload();
+  await u.page.waitForSelector('#gretry');
+  const gate = await u.page.textContent('#gate'); ok(/Could not reach the database/.test(gate) && /not a permissions problem/.test(gate), gate); ok(!/not an admin/.test(gate), 'database error shown as a permission error');
+  ok(await u.page.locator('#app').isHidden(), 'admin app shown during error');
+  await u.context.unroute('**/rpc/admin_overview', down); await u.page.click('#gretry'); await u.page.waitForSelector('.setup');
+  ok(await u.page.locator('#app').isVisible(), 'did not recover after Try again'); await u.context.close();
 });
 await t('a visitor with no staff login is sent to the login page from every staff page', async () => {
   const v = await newUser('visitor', MOBILE);

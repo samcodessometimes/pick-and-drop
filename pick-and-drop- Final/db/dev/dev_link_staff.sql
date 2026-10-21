@@ -8,13 +8,14 @@
 --   3. Run migrations 01 to 06 and db/dev/demo_seed.sql first.
 -- Afterwards each person must SIGN OUT and sign in again so the admin role reaches their token.
 --
--- Note: if this repository is public, replace real emails with test addresses before pushing.
+-- Type the real emails into the three lines below ONLY inside the Supabase SQL editor. Never commit them to GitHub.
+-- This script never touches passwords, never turns RLS off, and only changes the three logins named below.
 -- =====================================================================
 do $$
 declare
-  v_admin_email    text := 'tiangaysamandiayk@gmail.com';
-  v_merchant_email text := 'catalysttechlabsafrica.sl@gmail.com';
-  v_rider_email    text := 'aquahavenfarms.sl@gmail.com';
+  v_admin_email    text := 'PUT-ADMIN-EMAIL-HERE';
+  v_merchant_email text := 'PUT-MERCHANT-EMAIL-HERE';
+  v_rider_email    text := 'PUT-RIDER-EMAIL-HERE';
   u_admin uuid; u_merchant uuid; u_rider uuid; n int; r_id uuid;
 begin
   select id into u_admin    from auth.users where lower(email) = lower(v_admin_email);

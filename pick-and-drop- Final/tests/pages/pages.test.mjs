@@ -59,7 +59,7 @@ await t('search filters stores and shows an empty state', async () => {
   s.value = 'zzzz'; s.dispatchEvent(new p.w.Event('input', { bubbles: true })); eq(text(p, '#groceries'), 'No matches.');
 });
 await t('navigation: Orders and Account are disabled placeholders, staff links exist, no script errors', async () => {
-  ok($$(p, 'nav.tabs a.soon').length === 2, 'soon tabs'); ok($$(p, '.foot a').length === 3, 'footer links'); eq(p.problems().length, 0, p.problems().join('; '));
+  ok($$(p, 'nav.tabs a.soon').length === 2, 'soon tabs'); ok($$(p, '.foot a').length === 4, 'footer links (picture credits plus three staff links)'); eq(p.problems().length, 0, p.problems().join('; '));
 });
 await t('merchant page: demo banner, menu grouped by section, unavailable item hidden', async () => {
   p = await openPage('merchant.html', '?slug=goodies-supermarket'); await until(() => $$(p, '[data-add]').length > 0, 6000, 'menu');
