@@ -8,7 +8,7 @@ export async function placeOrder({ cart, address, method, ref }) {
     p_items: cart.items.map(i => ({ product_id: i.id, qty: i.qty })),
     p_address: address,
     p_method: method,
-    p_txn_ref: ref,
+    p_txn_ref: ref || null,
   });
   if (error) throw new Error(error.message);
   return data;
@@ -17,7 +17,7 @@ export async function placeOrder({ cart, address, method, ref }) {
 export async function getOrder(id) {
   await ensureSession();
   const { data, error } = await db.from('orders')
-    .select('*, merchants(name), order_items(name,quantity,line_total), payments(method,status,is_simulated)')
+    .select('*, merchants(name), order_items(name,quantity,line_total), payments(method,status,is_simulated,amount,note)')
     .eq('id', id).maybeSingle();
   if (error) throw new Error(error.message);
   return data;

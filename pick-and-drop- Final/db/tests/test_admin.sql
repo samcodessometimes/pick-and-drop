@@ -114,6 +114,7 @@ begin
   perform admin_assign_rider(o1, rider1);
   begin perform admin_assign_rider(o1, rider1); ok:=false; exception when others then ok:=true; end;
   insert into res2(test,ok) values ('assigning same rider again refused', ok);
+  perform admin_assign_rider(o2, rider1);   -- rider1 now holds two active orders (o1, o2)
   begin perform admin_assign_rider(o3, rider1); ok:=false; exception when others then ok:=true; end;
   insert into res2(test,ok) values ('rider already holding 2 active orders refused a third', ok);
   perform admin_assign_rider(o1, rider2);

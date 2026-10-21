@@ -1,5 +1,6 @@
 import { db, configured } from './supabase.js';
 import { addItem, getCart, setQty, cartCount, cartSubtotal } from './cart.js';
+import { img, isIllustration, pictureBadge, isPhoto } from './images.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -11,10 +12,13 @@ function eta(m) {
   return `${m.prep_time_min}${m.prep_time_max ? '-' + m.prep_time_max : ''} mins`;
 }
 
+const credit = m => (isIllustration(m.image_credit) ? ' (illustration)' : pictureBadge(m.image_credit) ? ` (${pictureBadge(m.image_credit).toLowerCase()})` : '');
+const alt = p => `${p.name}, ${isPhoto(p.image_url) ? 'illustrative photo' : 'illustrative image'}`;
+
 function merchantCard(m) {
-  const img = m.cover_url ? `<img src="${esc(m.cover_url)}" alt="" loading="lazy">` : `<span class="mark">${esc(m.name.charAt(0))}</span>`;
+  const pic = img(m.cover_url, `${m.name}${credit(m)}`, 'store', { w: 400, h: 300, sizes: '(max-width: 600px) 85vw, 400px' });
   return `<a class="card" href="merchant.html?slug=${encodeURIComponent(m.slug)}">
-    <div class="card-img">${img}<span class="tag ${m.is_partner ? 'tag-partner' : ''}">${esc(m.partner_label)}</span></div>
+    <div class="card-img">${pic}<span class="tag ${m.is_partner ? 'tag-partner' : ''}">${esc(m.partner_label)}</span>${pictureBadge(m.image_credit) ? `<span class="ill">${pictureBadge(m.image_credit)}</span>` : ''}</div>
     <div class="card-body"><h3>${esc(m.name)}</h3>
       <p>${m.rating ? '★ ' + Number(m.rating).toFixed(1) : 'New'}${eta(m) ? ' · ' + eta(m) : ''}</p>
       <p>${esc(m.neighbourhood || m.service_area_name)}${m.delivery_fee > 0 ? ' · ' + money(m.delivery_fee) + ' delivery' : ''}</p></div></a>`;
@@ -59,6 +63,13 @@ async function merchantPage() {
   $('#m-name').textContent = m.name;
   $('#m-meta').textContent = [m.partner_label, m.neighbourhood || m.service_area_name, eta(m)].filter(Boolean).join(' · ');
   if (!m.is_partner) $('#m-demo').hidden = false;
+  const cover = $('#m-cover');
+  if (cover) {
+    cover.innerHTML = img(m.cover_url, `${m.name}${credit(m)}`, 'store', { w: 800, h: 300, eager: true, sizes: '(max-width: 840px) 100vw, 800px' }) +
+      (isIllustration(m.image_credit) ? '<p class="credit">Illustration. It does not show the real premises.</p>'
+        : pictureBadge(m.image_credit) ? `<p class="credit">${pictureBadge(m.image_credit)}, shown for illustration. It does not show the real premises. <a href="credits.html">Picture credits</a></p>` : '');
+    cover.hidden = false;
+  }
 
   const { data: items, error: e2 } = await db.from('products')
     .select('id,name,description,price,unit_label,image_url,sort_order,product_categories(name,sort_order)')
@@ -73,10 +84,16 @@ async function merchantPage() {
     groups.get(s).push(p);
   }
   const byId = new Map(items.map(p => [p.id, p]));
-  root.innerHTML = [...groups].map(([s, ps]) => `<section><h2>${esc(s)}</h2>${ps.map(p => `
-    <div class="item"><div><h3>${esc(p.name)}</h3>${p.description ? `<p>${esc(p.description)}</p>` : ''}
-      <p class="price">${money(p.price)}${p.unit_label ? ' · ' + esc(p.unit_label) : ''}</p></div>
-      <button class="btn btn-sm" data-add="${esc(p.id)}" aria-label="Add ${esc(p.name)} to cart">Add</button></div>`).join('')}</section>`).join('');
+  const grocery = m.merchant_type === 'GROCERY', kind = grocery ? 'product' : 'meal';
+  const row = p => grocery
+    ? `<article class="pcard"><div class="pimg">${img(p.image_url, alt(p), kind, { w: 300, h: 225, sizes: '(max-width: 600px) 45vw, 300px' })}</div>
+        <h3>${esc(p.name)}</h3><p class="price">${money(p.price)}${p.unit_label ? ' · ' + esc(p.unit_label) : ''}</p>
+        <button class="btn btn-sm" data-add="${esc(p.id)}" aria-label="Add ${esc(p.name)} to cart">Add</button></article>`
+    : `<div class="item"><div class="pimg pimg-sm">${img(p.image_url, alt(p), kind, { w: 160, h: 160, sizes: '84px' })}</div>
+        <div class="ptext"><h3>${esc(p.name)}</h3>${p.description ? `<p>${esc(p.description)}</p>` : ''}
+        <p class="price">${money(p.price)}${p.unit_label ? ' · ' + esc(p.unit_label) : ''}</p></div>
+        <button class="btn btn-sm" data-add="${esc(p.id)}" aria-label="Add ${esc(p.name)} to cart">Add</button></div>`;
+  root.innerHTML = [...groups].map(([s, ps]) => `<section><h2>${esc(s)}</h2>${grocery ? `<div class="pgrid">${ps.map(row).join('')}</div>` : ps.map(row).join('')}</section>`).join('');
 
   root.addEventListener('click', e => {
     const b = e.target.closest('[data-add]'); if (!b) return;
@@ -96,7 +113,8 @@ function cartPage() {
     if (!c.items.length) { root.innerHTML = '<p class="note">Your cart is empty.</p><a class="btn" href="index.html">Browse stores</a>'; return; }
     const fee = c.merchant.delivery_fee, sub = cartSubtotal(), below = sub < c.merchant.min_order_amount;
     root.innerHTML = `<h2>${esc(c.merchant.name)}</h2>` + c.items.map(i => `
-      <div class="item"><div><h3>${esc(i.name)}</h3><p class="price">${money(i.price * i.qty)}</p></div>
+      <div class="item"><div class="pimg pimg-sm">${img(i.image, `${i.name}, illustrative image`, c.merchant.type === 'GROCERY' ? 'product' : 'meal', { w: 160, h: 160 })}</div>
+      <div class="ptext"><h3>${esc(i.name)}</h3><p class="price">${money(i.price * i.qty)}</p></div>
       <div class="qty"><button data-q="${esc(i.id)}" data-d="-1" aria-label="Remove one ${esc(i.name)}">−</button><span>${i.qty}</span>
       <button data-q="${esc(i.id)}" data-d="1" aria-label="Add one ${esc(i.name)}">+</button></div></div>`).join('') + `
       <dl class="totals"><dt>Subtotal</dt><dd>${money(sub)}</dd><dt>Delivery</dt><dd>${money(fee)}</dd>

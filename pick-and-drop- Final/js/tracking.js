@@ -1,5 +1,6 @@
 import { configured } from './supabase.js';
 import { getOrder, getPin, watchOrder } from './orders.js';
+import { payInfo, METHOD_LABEL, DELIVERY_LABEL } from './status.js';
 
 const root = document.querySelector('#tracking');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -17,10 +18,15 @@ async function draw(id) {
   if (!o) { root.innerHTML = '<p class="note">We could not find this order.</p>'; return; }
   const pin = o.status === 'DELIVERED' ? null : await getPin(id);
   const s = stage(o);
+  const pay = o.payments?.[0], pi = payInfo(pay), cashDue = pay?.method === 'CASH_ON_DELIVERY' && pay.status === 'PENDING' && o.status !== 'CANCELLED';
   root.innerHTML = `
     ${o.is_demo ? '<div class="banner">Demo order. No real business, rider or payment is involved.</div>' : ''}
     <h2>Order #${esc(o.order_number)}</h2>
     <p class="note">${esc(o.merchants?.name)} · ${money(o.total)}</p>
+    <p class="payline"><span class="badge badge-${pi.tone}">${esc(pi.text)}</span> <span class="note">${esc(METHOD_LABEL[pay?.method] || '')}</span></p>
+    ${cashDue ? `<p class="inst">Cash on delivery: please have ${money(o.total)} ready for the rider.</p>` : ''}
+    ${pi.detail && !cashDue ? `<p class="note">${esc(pi.detail)}</p>` : ''}
+    ${o.rider_id ? `<p class="note">Delivery: ${esc(DELIVERY_LABEL[o.delivery_status] || o.delivery_status)}</p>` : ''}
     ${o.status === 'CANCELLED' ? '<p class="error">This order was cancelled.</p>' : `<ol class="steps">${STEPS.map((t, i) =>
       `<li class="${i < s ? 'done' : i === s ? 'now' : ''}" ${i === s ? 'aria-current="step"' : ''}>${t}</li>`).join('')}</ol>`}
     ${pin ? `<section class="pin" aria-label="Delivery PIN"><p>Delivery PIN</p><strong>${esc(pin)}</strong>

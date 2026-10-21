@@ -4,8 +4,9 @@ import * as overview from './admin-overview.js';
 import * as orders from './admin-orders.js';
 import * as merchants from './admin-merchants.js';
 import * as riders from './admin-riders.js';
+import * as finance from './admin-finance.js';
 
-const TABS = { overview, orders, merchants, riders };
+const TABS = { overview, orders, merchants, riders, finance };
 const gate = document.querySelector('#gate'), app = document.querySelector('#app'), view = document.querySelector('#view');
 const dlg = document.querySelector('#panel');
 wireSignOut();
@@ -24,7 +25,7 @@ function select(tab) {
   current = tab;
   document.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
   view.innerHTML = '<p class="note">Loading...</p>';
-  TABS[tab].render(view, ctx).catch(() => note(view, 'Could not load this section. Refresh to try again.'));
+  TABS[tab].render(view, ctx).catch(() => note(view, 'Could not load this section. Refresh the page to try again.'));
 }
 document.querySelector('.atabs').addEventListener('click', e => {
   const b = e.target.closest('[data-tab]'); if (b) select(b.dataset.tab);

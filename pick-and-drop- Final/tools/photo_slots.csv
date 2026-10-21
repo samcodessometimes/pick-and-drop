@@ -1,0 +1,33 @@
+slot,kind,aspect,products_in_demo_menus,demo_merchants,what_the_photo_should_show
+jollof-rice-chicken,meal,4:3,Jollof rice with chicken,demo-jollof-kitchen | demo-grill-chicken,"Plate of red jollof rice with grilled chicken. Top-down or 45 degrees, no brand logos."
+fried-fish-rice,meal,4:3,Fried fish and rice,demo-jollof-kitchen | demo-fufu-soup-house,White rice with whole or pieces of fried fish and a pepper sauce.
+cassava-leaves-rice,meal,4:3,Cassava leaves and rice,demo-jollof-kitchen | demo-fufu-soup-house,"Rice served with green cassava leaf stew (palm oil stew, may contain meat or fish)."
+soft-drink,meal,4:3,Soft drink,demo-jollof-kitchen | demo-fufu-soup-house | demo-burger-pizza-spot | demo-grill-chicken,Glass or bottle of a plain soft drink with ice. No visible brand labels.
+fufu-groundnut-soup,meal,4:3,Fufu with groundnut soup,demo-fufu-soup-house,Ball of fufu with groundnut (peanut) soup in a bowl.
+burger-chips,meal,4:3,Burger and chips,demo-burger-pizza-spot,Beef burger with a carton or plate of chips (fries). No brand packaging.
+chicken-burger-chips,meal,4:3,Chicken burger and chips,demo-burger-pizza-spot | demo-grill-chicken,Crispy chicken burger with chips. No brand packaging.
+pizza-margherita,meal,4:3,Margherita pizza,demo-burger-pizza-spot,"Whole margherita pizza (tomato, mozzarella, basil)."
+pizza-pepperoni,meal,4:3,Pepperoni pizza,demo-burger-pizza-spot,Whole pepperoni pizza.
+chips,meal,4:3,Chips,demo-burger-pizza-spot | demo-grill-chicken,"Carton or bowl of chips (french fries), plain."
+grilled-chicken-chips,meal,4:3,Grilled chicken and chips,demo-grill-chicken,Two grilled chicken pieces with chips on a plate.
+fresh-tomatoes,product,4:3,Fresh tomatoes,demo-fresh-market,Pile of fresh red tomatoes.
+onions,product,4:3,Onions,demo-fresh-market,Pile of onions.
+bananas,product,4:3,Bananas,demo-fresh-market,Bunch of bananas.
+oranges,product,4:3,Oranges,demo-fresh-market,Pile of oranges.
+cabbage,product,4:3,Cabbage,demo-fresh-market,A green cabbage head.
+hot-peppers,product,4:3,Hot peppers,demo-fresh-market,Hot peppers (scotch bonnet style) in a pile or basket.
+apples,product,4:3,Apples,demo-fresh-market,Pile of apples. No readable stickers or brands.
+vegetable-basket,product,3:2,Vegetable basket,demo-fresh-market,Basket of mixed fresh vegetables. No readable brands.
+rice-5kg,product,4:3,Rice,demo-corner-supermarket,Bag of plain rice or rice grains in a bag. No readable brand.
+cooking-oil,product,4:3,Cooking oil,demo-corner-supermarket,"Bottle of cooking oil, plain or unreadable label."
+bottled-water,product,4:3,Bottled water,demo-corner-supermarket,Plain bottled water. No readable brand.
+juice-carton,product,4:3,Orange juice,demo-corner-supermarket,Plain juice carton or bottle. No readable brand.
+soap-bars,product,4:3,Bar soap,demo-corner-supermarket,Pack of plain bar soap. No readable brand.
+toothpaste,product,4:3,Toothpaste,demo-corner-supermarket,Tube of toothpaste. No readable brand.
+laundry-liquid,product,4:3,Laundry liquid,demo-corner-supermarket,Bottle of laundry liquid. No readable brand.
+toilet-tissue,product,4:3,Toilet tissue,demo-corner-supermarket,Pack of toilet rolls. No readable brand.
+restaurant-kitchen,cover,3:2,,demo-jollof-kitchen,Warm restaurant kitchen or dining room interior or a plated-food scene. No signage or logos.
+restaurant-grill,cover,3:2,,demo-fufu-soup-house | demo-grill-chicken,"Charcoal or open grill with chicken, or casual grill restaurant. No signage or logos."
+restaurant-fastfood,cover,3:2,,demo-burger-pizza-spot,Fast-food style burgers and chips spread. No brand packaging.
+grocery-market,cover,3:2,,demo-fresh-market,Fresh produce market stall with vegetables and fruit. No signage.
+grocery-supermarket,cover,3:2,,demo-corner-supermarket,Supermarket aisle or shelves with groceries. No readable brands.

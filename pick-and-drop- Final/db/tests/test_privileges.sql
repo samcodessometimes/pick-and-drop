@@ -14,7 +14,9 @@ insert into res3(test, ok)
 insert into res3(test, ok)
  select 'authenticated may execute public.' || p.proname || '()', p.proname in ('is_admin','distance_km','is_merchant_staff','place_order','verify_delivery_pin',
    'merchant_set_order_status','rider_advance_delivery','admin_overview','admin_set_order_status','admin_assign_rider','admin_save_rider',
-   'admin_save_merchant','admin_set_merchant_status','admin_unlock_delivery_pin')
+   'admin_save_merchant','admin_set_merchant_status','admin_unlock_delivery_pin','record_cash_collected','admin_set_payment_status',
+   'admin_link_staff','admin_unlink_staff','merchant_dashboard','admin_setup_status','admin_rider_load','admin_save_settings','admin_finance_summary',
+   'admin_record_merchant_settlement','admin_record_rider_payout','admin_merchant_staff','rider_deliveries')
  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
  where n.nspname = 'public' and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e') and has_function_privilege('authenticated', p.oid, 'execute') order by p.proname;
 -- 4. every SECURITY DEFINER function pins its search_path
@@ -24,14 +26,19 @@ insert into res3(test, ok)
 -- 5. anonymous users have no policy-granted rows on private tables (policy roles)
 insert into res3(test, ok)
  select 'no policy lets anon read ' || tablename, not exists (select 1 from pg_policies pl where pl.schemaname = 'public' and pl.tablename = t.tablename and ('anon' = any(pl.roles) or 'public' = any(pl.roles)) and pl.cmd in ('SELECT','ALL'))
- from (values ('orders'),('order_items'),('payments'),('order_delivery_pins'),('order_status_history'),('riders'),('profiles'),('merchant_staff'),('merchant_internal'),('admin_audit_log')) t(tablename);
+ from (values ('orders'),('order_items'),('payments'),('order_delivery_pins'),('order_status_history'),('riders'),('profiles'),('merchant_staff'),('merchant_internal'),('admin_audit_log'),('order_financials'),('platform_settings'),('merchant_settlements'),('rider_payouts')) t(tablename);
 -- 6. no insert/update/delete policy exists for customers or riders on order data
 insert into res3(test, ok)
  select 'no write policy on ' || tablename || ' except admin-only', not exists (select 1 from pg_policies pl where pl.schemaname = 'public' and pl.tablename = t.tablename and pl.cmd in ('INSERT','UPDATE','DELETE','ALL') and pl.policyname not like '%admin%')
- from (values ('orders'),('order_items'),('payments'),('order_delivery_pins'),('order_status_history'),('profiles'),('merchant_internal'),('admin_audit_log')) t(tablename);
+ from (values ('orders'),('order_items'),('payments'),('order_delivery_pins'),('order_status_history'),('profiles'),('merchant_internal'),('admin_audit_log'),('order_financials'),('platform_settings'),('merchant_settlements'),('rider_payouts')) t(tablename);
 insert into res3(test, ok) values ('orders has no admin write policy any more', not exists (select 1 from pg_policies where tablename = 'orders' and cmd in ('UPDATE','DELETE','INSERT','ALL')));
 -- 7. views use the caller's permissions and expose no internal columns
 insert into res3(test, ok) values
  ('merchants_public is security_invoker', coalesce((select 'security_invoker=true' = any(reloptions) from pg_class where relname = 'merchants_public'), false)),
  ('merchants_public hides internal columns', not exists (select 1 from information_schema.columns where table_name = 'merchants_public' and column_name in ('internal_notes','data_source','source_url','owner_id','partnered_at')));
+-- 8. the provider confirmation entry point is reachable only by the service role
+insert into res3(test, ok) values
+ ('provider_confirm_payment: not executable by anon', not has_function_privilege('anon', 'public.provider_confirm_payment(uuid,text,text,numeric)', 'execute')),
+ ('provider_confirm_payment: not executable by authenticated', not has_function_privilege('authenticated', 'public.provider_confirm_payment(uuid,text,text,numeric)', 'execute')),
+ ('provider_confirm_payment: executable by service_role', has_function_privilege('service_role', 'public.provider_confirm_payment(uuid,text,text,numeric)', 'execute'));
 select n, case when ok then 'PASS' else 'FAIL' end as result, test from res3 order by n;

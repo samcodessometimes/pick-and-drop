@@ -27,14 +27,15 @@ export async function render(el, ctx) {
       <div>${esc(m.service_areas?.name)}<small>${esc([m.neighbourhood, m.address_line].filter(Boolean).join(', ') || 'No address on file')}</small></div>
       <div>${m.phone ? esc(m.phone) : '<small>No phone on file</small>'}<small>${esc(label(m.verification))}</small></div>
       <div><span class="pill ${m.status === 'ACTIVE' ? 'pill-on' : ''}">${esc(PARTNER[m.status])}</span>
-        <small><button class="linkbtn" data-edit="${esc(m.id)}">Edit</button> <button class="linkbtn" data-status="${esc(m.id)}">Status</button></small></div></article>`).join('')
+        <small><button class="linkbtn" data-edit="${esc(m.id)}">Edit</button> <button class="linkbtn" data-status="${esc(m.id)}">Status</button> <button class="linkbtn" data-logins="${esc(m.id)}">Logins</button></small></div></article>`).join('')
       : '<p class="note">No merchants match. Use Add merchant to create a demo listing.</p>';
   }
   el.querySelector('#mq').addEventListener('input', draw);
   el.querySelector('#ms').addEventListener('change', draw);
   el.querySelector('#madd').addEventListener('click', () => form(null));
   list.addEventListener('click', e => {
-    const ed = e.target.closest('[data-edit]'), st = e.target.closest('[data-status]');
+    const ed = e.target.closest('[data-edit]'), st = e.target.closest('[data-status]'), lg = e.target.closest('[data-logins]');
+    if (lg) loginsDlg(ms.find(m => m.id === lg.dataset.logins));
     if (ed) form(ms.find(m => m.id === ed.dataset.edit));
     if (st) statusDlg(ms.find(m => m.id === st.dataset.status));
   });
@@ -72,6 +73,28 @@ export async function render(el, ctx) {
       const res = await callRpc('admin_save_merchant', { p_id: m ? m.id : null, p: f }, body.querySelector('#fmsg'));
       btn.disabled = false; if (res) reload();
     });
+  }
+
+  // Who can sign in to this shop's dashboard. Replaces hand-written SQL: the admin types the email of a login
+  // that already exists in Supabase Authentication, and the database checks and records the link.
+  async function loginsDlg(m) {
+    const { data: staff, error: e1 } = await db.rpc('admin_merchant_staff', { p_merchant_id: m.id });
+    const body = ctx.open(`<h2>Logins: ${esc(m.name)}</h2>
+      <p class="note">People who can sign in at the merchant dashboard and see this shop's orders. Linking a login does not change the shop's DEMO or partner status.</p>
+      ${e1 ? '<p class="error">Could not load logins.</p>' : staff.length ? `<ul class="plain">${staff.map(u => `<li>${esc(u.email)} <button class="linkbtn" data-unlink="${esc(u.user_id)}">Remove</button></li>`).join('')}</ul>` : '<p class="note">No logins are linked yet.</p>'}
+      <form id="lf">${field('email', 'Email of an existing login', '', 'email', 'required')}<p class="note">Create the login first in Supabase, Authentication, Users, with Auto Confirm ticked.</p>
+      <p class="error" id="lmsg" role="alert" hidden></p><button class="btn btn-block" style="width:100%">Link login</button></form>`);
+    const msg = body.querySelector('#lmsg');
+    body.querySelector('#lf').addEventListener('submit', async e => {
+      e.preventDefault(); const btn = e.target.querySelector('button'); btn.disabled = true;
+      const ok = await callRpc('admin_link_staff', { p_kind: 'MERCHANT', p_email: new FormData(e.target).get('email'), p_target: m.id }, msg);
+      btn.disabled = false; if (ok) loginsDlg(m);
+    });
+    body.onclick = async e => {
+      const b = e.target.closest('[data-unlink]'); if (!b || !confirm('Remove this login from the shop?')) return;
+      const ok = await callRpc('admin_unlink_staff', { p_kind: 'MERCHANT', p_target: m.id, p_user: b.dataset.unlink }, msg);
+      if (ok) loginsDlg(m);
+    };
   }
 
   function statusDlg(m) {
