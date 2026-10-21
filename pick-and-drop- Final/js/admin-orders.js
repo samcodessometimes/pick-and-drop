@@ -1,4 +1,5 @@
 import { db } from './supabase.js';
+import { simulate } from './admin-simulate.js';
 import { esc, money, fmtDate, label, callRpc, spinner, showError, timeAgo } from './ui.js';
 import { ORDER_LABEL, DELIVERY_LABEL, METHOD_LABEL, SETTLEMENT_LABEL, RIDER_PAY_LABEL, payInfo } from './status.js';
 
@@ -32,7 +33,11 @@ const row = o => {
 
 export async function render(el, ctx) {
   const st = { status: '', q: '', demo: '', focus: '', n: 0 };
-  el.innerHTML = `<div class="filters"><input id="oq" type="search" placeholder="Search order reference, e.g. PD1024" aria-label="Search order reference">
+  el.innerHTML = `<details class="sim"><summary>Simulate customer orders (demo)</summary>
+    <p class="note">Places demo orders from the demo shops through the same checkout customers use. Prices, minimums, payment labels and delivery PINs are real server behaviour. No real money or business is involved.</p>
+    <form id="simform" class="filters"><label class="sr" for="simn">How many orders</label><select id="simn"><option>1</option><option selected>3</option><option>5</option></select>
+    <button class="btn btn-sm" type="submit">Place demo orders</button></form><div id="simout" aria-live="polite"></div></details>
+    <div class="filters"><input id="oq" type="search" placeholder="Search order reference, e.g. PD1024" aria-label="Search order reference">
     <select id="of" aria-label="Needs attention">${Object.entries(FILTERS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
     <select id="os" aria-label="Filter by status"><option value="">All statuses</option>${STATUSES.map(s => `<option value="${s}">${ORDER_LABEL[s]}</option>`).join('')}</select>
     <select id="od" aria-label="Demo or live"><option value="">Demo and live</option><option value="demo">Demo/test only</option><option value="live">Live only</option></select></div>
@@ -63,6 +68,20 @@ export async function render(el, ctx) {
     if (!list.children.length) list.innerHTML = `<div class="empty"><p><strong>${st.q || st.status || st.demo || st.focus ? 'No orders match these filters.' : 'No orders yet.'}</strong></p>
       ${st.q || st.status || st.demo || st.focus ? '' : '<p class="note">Orders appear here when customers check out. To see one now, place a demo order from the customer home page.</p>'}</div>`;
   }
+
+  const simOut = el.querySelector('#simout'), simBtn = el.querySelector('#simform button');
+  el.querySelector('#simform').addEventListener('submit', async e => {
+    e.preventDefault(); simBtn.disabled = true; simOut.innerHTML = '<p class="loading" role="status">Starting...</p>';
+    try {
+      const res = await simulate(Number(el.querySelector('#simn').value), m => { simOut.innerHTML = `<p class="loading" role="status">${esc(m)}</p>`; });
+      const good = res.filter(r => r.ok);
+      simOut.innerHTML = `<p class="${good.length ? 'ok' : 'error'}">${good.length} of ${res.length} demo order${res.length === 1 ? '' : 's'} placed.</p><ul class="plain">${res.map(r => r.ok
+        ? `<li>#${esc(r.number)} from ${esc(r.shop)} <a href="tracking.html?id=${encodeURIComponent(r.id)}" target="_blank" rel="noopener">View as customer</a></li>`
+        : `<li class="error">${esc(r.shop)}: ${esc(r.error)}</li>`).join('')}</ul>`;
+      load(true);
+    } catch (err) { simOut.innerHTML = `<p class="error" role="alert">${esc(err.message)}</p>`; }
+    simBtn.disabled = false;
+  });
 
   let t;
   el.querySelector('#oq').addEventListener('input', e => { clearTimeout(t); t = setTimeout(() => { st.q = e.target.value.trim(); load(true); }, 300); });

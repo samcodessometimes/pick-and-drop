@@ -201,3 +201,17 @@ nav.tabs a[aria-current]{color:var(--red);font-weight:600}
 @media(min-width:720px){.promo{min-height:300px}.promo img{width:55%;max-height:none}.promo-txt{max-width:50%}}
 .card-img{aspect-ratio:auto;width:100%}
 @media(min-width:720px){.cats{grid-template-columns:repeat(4,132px);justify-content:start;gap:18px}.promo{margin-left:auto;margin-right:auto}}
+/* Ratings */
+.stars{position:relative;display:inline-block;line-height:1;font-size:1rem;letter-spacing:1px;vertical-align:-1px;white-space:nowrap}
+.stars-bg{color:#d9cdb2}.stars-fg{position:absolute;left:0;top:0;overflow:hidden;color:#D99A1E;white-space:nowrap}
+.rate{gap:6px}.rate b{font-weight:600}.rate .stars{font-size:.8rem}
+.mrate{margin:4px 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.mrate .stars{font-size:1.15rem}
+.ratebox{background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:20px 0}
+.ratebox h3{font-size:1.05rem;margin-bottom:8px}
+.picker{display:flex;flex-direction:row-reverse;justify-content:flex-end;gap:2px;margin:6px 0 4px}
+.picker label{font-size:2.4rem;line-height:1;color:#d9cdb2;cursor:pointer;padding:0 3px;margin:0}
+.picker input:checked ~ label,.picker label:hover,.picker label:hover ~ label{color:#D99A1E}
+.picker input:focus-visible + label{outline:3px solid var(--gold);border-radius:8px}
+.ratebox textarea{display:block;width:100%;margin-top:6px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--white);color:var(--ink);font:inherit;font-weight:400}
+.sim{background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;margin:0 0 14px}
+.sim summary{cursor:pointer;font-weight:600;color:var(--red)}.sim form{margin:8px 0}.sim ul{margin:8px 0 0}

@@ -103,7 +103,7 @@ await t('another merchant\'s dashboard does not show this order', async () => {
   as(TOK.merchS); const q = await openPage('merchant-dashboard.html'); await until(() => $(q, '#list') && text(q, '#list') !== '', 6000, 'list'); ok(!text(q).includes(num), 'cross-merchant leak'); eq(text(q, '#mname'), "St Mary's");
 });
 group('Admin dashboard');
-await t('non-admin staff are told the page is admin-only (server decides)', async () => { as(TOK.merchG); const q = await openPage('admin.html'); await until(() => /admins only/.test(text(q, '#gate')), 5000, 'message'); ok($(q, '#app').hidden, 'app visible'); });
+await t('non-admin staff are told the page is admin-only (server decides)', async () => { as(TOK.merchG); const q = await openPage('admin.html'); await until(() => /not an admin/.test(text(q, '#gate')), 5000, 'message'); ok($(q, '#app').hidden, 'app visible'); });
 await t('overview shows real database counts and flags demo vs live', async () => {
   as(TOK.admin); p = await openPage('admin.html'); await until(() => $$(p, '.stat').length > 3, 6000, 'stats'); const stat = n => $$(p, '.stat').find(s => s.querySelector('span')?.textContent === n);
   eq(Number(stat('Total orders').querySelector('strong').textContent), Number(sql('select count(*) from orders')), 'orders'); eq(Number(stat('Registered merchants').querySelector('strong').textContent), Number(sql('select count(*) from merchants')), 'merchants');

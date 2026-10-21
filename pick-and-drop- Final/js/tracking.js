@@ -1,4 +1,5 @@
-import { configured } from './supabase.js';
+import { configured, db } from './supabase.js';
+import { stars, picker } from './stars.js';
 import { getOrder, getPin, watchOrder } from './orders.js';
 import { payInfo, METHOD_LABEL, DELIVERY_LABEL } from './status.js';
 
@@ -34,6 +35,37 @@ async function draw(id) {
     ${o.status === 'DELIVERED' ? '<p class="done-msg">Your order has been delivered. Thank you for using Pick & Drop.</p>' : ''}
     <h3>Items</h3>${o.order_items.map(i => `<div class="item"><span>${i.quantity} x ${esc(i.name)}</span><span>${money(i.line_total)}</span></div>`).join('')}
     <p class="note">Delivering to ${esc(o.address_line)}</p>`;
+  await drawRating(o);
+}
+
+// Rating box. It lives outside #tracking so the 15-second refresh never wipes a half-written rating.
+const box = document.querySelector('#rating');
+let ratingFor = '';   // 'form:<id>' or 'done:<id>' once drawn, so an unchanged state is not redrawn
+async function drawRating(o) {
+  if (!box) return;
+  if (o.status !== 'DELIVERED') { box.innerHTML = ''; ratingFor = ''; return; }
+  const { data: mine, error } = await db.from('order_ratings').select('stars,comment').eq('order_id', o.id).maybeSingle();
+  if (error) { box.innerHTML = '<p class="note">Could not check your rating. Refresh to try again.</p>'; ratingFor = ''; return; }
+  const state = (mine ? 'done:' : 'form:') + o.id;
+  if (state === ratingFor) return; ratingFor = state;
+  if (mine) {
+    box.innerHTML = `<section class="ratebox"><h3>Your rating</h3><p>${stars(mine.stars)} <b>${mine.stars} out of 5</b></p>${mine.comment ? `<p class="note">${esc(mine.comment)}</p>` : ''}<p class="note">Thank you. Your rating helps other customers.</p></section>`;
+    return;
+  }
+  box.innerHTML = `<section class="ratebox"><h3>How was ${esc(o.merchants?.name || 'your order')}?</h3>
+    <form id="rateform" novalidate>${picker('rating')}
+    <label>Add a comment (optional)<textarea name="comment" rows="2" maxlength="300" placeholder="What did you like, or what went wrong?"></textarea></label>
+    <p class="error" id="rmsg" role="alert" hidden></p><button class="btn btn-block" type="submit">Submit rating</button></form></section>`;
+  const form = box.querySelector('#rateform'), msg = box.querySelector('#rmsg');
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const val = form.querySelector('input[name=rating]:checked')?.value;
+    if (!val) { msg.textContent = 'Choose a star rating first.'; msg.hidden = false; return; }
+    const btn = form.querySelector('button'); btn.disabled = true; msg.hidden = true;
+    const { error: err } = await db.rpc('rate_order', { p_order_id: o.id, p_stars: Number(val), p_comment: form.comment.value });
+    if (err) { msg.textContent = err.message; msg.hidden = false; btn.disabled = false; return; }
+    ratingFor = ''; drawRating(o).catch(() => {});
+  });
 }
 
 const id = new URLSearchParams(location.search).get('id');

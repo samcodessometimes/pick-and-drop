@@ -16,7 +16,7 @@ insert into res3(test, ok)
    'merchant_set_order_status','rider_advance_delivery','admin_overview','admin_set_order_status','admin_assign_rider','admin_save_rider',
    'admin_save_merchant','admin_set_merchant_status','admin_unlock_delivery_pin','record_cash_collected','admin_set_payment_status',
    'admin_link_staff','admin_unlink_staff','merchant_dashboard','admin_setup_status','admin_rider_load','admin_save_settings','admin_finance_summary',
-   'admin_record_merchant_settlement','admin_record_rider_payout','admin_merchant_staff','rider_deliveries')
+   'admin_record_merchant_settlement','admin_record_rider_payout','admin_merchant_staff','rider_deliveries','rate_order')
  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
  where n.nspname = 'public' and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e') and has_function_privilege('authenticated', p.oid, 'execute') order by p.proname;
 -- 4. every SECURITY DEFINER function pins its search_path

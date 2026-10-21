@@ -1,6 +1,7 @@
 import { db, configured } from './supabase.js';
 import { addItem, getCart, setQty, cartCount, cartSubtotal } from './cart.js';
 import { img, isIllustration, pictureBadge, isPhoto, coverFor } from './images.js';
+import { stars, ratingText } from './stars.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -22,7 +23,7 @@ const ICON = { clock: I('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
 function merchantCard(m) {
   const cv = coverFor(m), pic = img(cv.url, `${m.name}${credit(m)}`, 'store', { w: 400, h: 300, sizes: '(max-width: 600px) 85vw, 400px' });
   return `<a class="card" href="merchant.html?slug=${encodeURIComponent(m.slug)}">
-    <div class="card-img">${pic}<span class="tag ${m.is_partner ? 'tag-partner' : ''}">${esc(m.partner_label)}</span>${pictureBadge(cv.credit) ? `<span class="ill">${pictureBadge(cv.credit)}</span>` : ''}${m.rating ? `<span class="rate">${ICON.star}${Number(m.rating).toFixed(1)}</span>` : ''}</div>
+    <div class="card-img">${pic}<span class="tag ${m.is_partner ? 'tag-partner' : ''}">${esc(m.partner_label)}</span>${pictureBadge(cv.credit) ? `<span class="ill">${pictureBadge(cv.credit)}</span>` : ''}<span class="rate">${stars(m.rating, m.rating_count)}<b>${ratingText(m.rating, m.rating_count)}</b></span></div>
     <div class="card-body"><h3>${esc(m.name)}</h3>
       ${eta(m) ? `<p class="meta">${ICON.clock}${eta(m)}</p>` : `<p class="meta">${ICON.clock}New on Pick &amp; Drop</p>`}
       <p class="meta">${ICON.bike}${m.delivery_fee > 0 ? money(m.delivery_fee) + ' delivery fee' : 'Free delivery'}</p>
@@ -68,6 +69,7 @@ async function merchantPage() {
   $('#m-name').textContent = m.name;
   $('#m-meta').textContent = [m.partner_label, m.neighbourhood || m.service_area_name, eta(m)].filter(Boolean).join(' · ');
   if (!m.is_partner) $('#m-demo').hidden = false;
+  const rl = $('#m-rating'); if (rl) rl.innerHTML = `${stars(m.rating, m.rating_count)} <b>${ratingText(m.rating, m.rating_count)}</b>${m.rating_count ? '' : ' <span class="note">Rated by customers after delivery</span>'}`;
   const cover = $('#m-cover');
   if (cover) {
     const cv = coverFor(m);

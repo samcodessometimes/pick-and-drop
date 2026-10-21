@@ -3,7 +3,7 @@
 All suites need a local PostgreSQL 16. None touch a real Supabase project. The test JWT secret and fixture users are for local use only.
 
 ## SQL (db/tests)
-Load db/tests/supabase_stub.sql, then migrations 01 to 06, then run each of test_flows.sql, test_admin.sql, test_payments.sql, test_privileges.sql on a fresh database with `psql -v ON_ERROR_STOP=1`. They print PASS/FAIL rows and are not meant to be run twice on one database.
+Load db/tests/supabase_stub.sql, then migrations 01 to 06, then run each of test_flows.sql, test_admin.sql, test_payments.sql, test_privileges.sql, test_ratings.sql on a fresh database with `psql -v ON_ERROR_STOP=1`. They print PASS/FAIL rows and are not meant to be run twice on one database.
 
 ## HTTP API (tests/api)
 Needs the PostgREST 12.2.x binary. Load tests/api/fixtures.sql after the migrations, start PostgREST with tests/api/postgrest.conf, then `node tests/api/api_security.test.mjs`. Section F covers payments, cash on delivery, the merchant dashboard, settlements and staff linking.

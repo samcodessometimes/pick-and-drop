@@ -412,6 +412,21 @@ await t('customer tracking shows Delivered and cash collected', async () => {
   ok(/Cash collected/.test(await cust.page.textContent('.payline')), 'cash collected badge');
   await shot(cust, '15-tracking-delivered-mobile');
 });
+await t('customer rates the delivered order: stars required, one rating only, shop card then shows the stars', async () => {
+  await cust.page.goto('/tracking.html?id=' + orderId); await cust.page.waitForSelector('#rateform');
+  await cust.page.click('#rateform button'); ok(/Choose a star rating/.test(await cust.page.textContent('#rmsg')), 'no stars chosen should be refused');
+  await cust.page.click('label[for=rating4]'); await cust.page.fill('#rateform textarea', 'Hot and on time');
+  await cust.page.click('#rateform button'); await cust.page.waitForSelector('.ratebox:has-text("4 out of 5")');
+  ok(/Hot and on time/.test(await cust.page.textContent('.ratebox')), 'comment shown'); ok(await cust.page.locator('#rateform').count() === 0, 'form should be gone after rating');
+  await cust.page.reload(); await cust.page.waitForSelector('.ratebox:has-text("Your rating")'); eq(await cust.page.locator('#rateform').count(), 0, 'rating form came back after reload');
+  await shot(cust, '15b-rated-mobile');
+  await cust.page.goto('/index.html'); await cust.page.waitForSelector('#restaurants .card');
+  const card = await cust.page.locator('#restaurants .card:has-text("Demo Jollof Kitchen") .rate').textContent();
+  ok(/4\.0\s*\(1\)/.test(card), 'card shows 4.0 (1): ' + card);
+  ok(/New/.test(await cust.page.locator('#restaurants .card:has-text("Demo Burger") .rate').textContent()), 'unrated shop shows New');
+  await cust.page.goto('/merchant.html?slug=demo-jollof-kitchen'); await cust.page.waitForSelector('#m-rating .stars');
+  ok(/4\.0/.test(await cust.page.textContent('#m-rating')), 'shop page shows the rating');
+});
 await t('merchant sees the order as completed, sales figures, and payout not yet set', async () => {
   await mer.page.reload(); await mer.page.waitForSelector('#msel'); await mer.page.selectOption('#msel', { label: 'Demo Jollof Kitchen' }); await mer.page.waitForSelector('.stats'); await mer.page.click('[data-tab=completed]');
   await mer.page.waitForSelector(`.ocard:has-text("#${orderNum}"):has-text("Delivered")`);
@@ -460,6 +475,16 @@ await t('admin page: a failed database request says so (not "not an admin"), off
   ok(await u.page.locator('#app').isHidden(), 'admin app shown during error');
   await u.context.unroute('**/rpc/admin_overview', down); await u.page.click('#gretry'); await u.page.waitForSelector('.setup');
   ok(await u.page.locator('#app').isVisible(), 'did not recover after Try again'); await u.context.close();
+});
+await t('admin simulator places demo orders through the real checkout and they show in the orders list', async () => {
+  const before = Number(sql(`select count(*) from orders`));
+  await adm.page.click('[data-tab=orders]'); await adm.page.waitForSelector('.sim');
+  await adm.page.click('.sim summary'); await adm.page.selectOption('#simn', '3'); await adm.page.click('#simform button');
+  await adm.page.waitForSelector('#simout .ok'); const out = await adm.page.textContent('#simout'); ok(/3 of 3 demo orders placed/.test(out), out);
+  eq(Number(sql(`select count(*) from orders`)), before + 3, 'three orders in the database');
+  eq(sql(`select count(*) from orders o join merchants m on m.id=o.merchant_id where o.created_at > now() - interval '2 minutes' and m.slug not like 'demo-%'`), '0', 'simulator ordered from a non-demo shop');
+  eq(sql(`select count(*) from orders where contact_name like 'Demo Customer %' and is_demo`), '3', 'simulated orders are labelled demo');
+  ok(await adm.page.locator('#simout a:has-text("View as customer")').count() === 3, 'tracking links');
 });
 await t('a visitor with no staff login is sent to the login page from every staff page', async () => {
   const v = await newUser('visitor', MOBILE);
