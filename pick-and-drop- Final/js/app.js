@@ -15,13 +15,18 @@ function eta(m) {
 const credit = m => { const c = coverFor(m).credit; return isIllustration(c) ? ' (illustration)' : pictureBadge(c) ? ` (${pictureBadge(c).toLowerCase()})` : ''; };
 const alt = p => `${p.name}, ${isPhoto(p.image_url) ? 'illustrative photo' : 'illustrative image'}`;
 
+const I = d => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICON = { clock: I('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'), bike: I('<circle cx="6" cy="16" r="3.2"/><circle cx="18" cy="16" r="3.2"/><path d="M6 16 9.5 8H13l3 8M9 8H7M12 11h5"/>'), pin: I('<path d="M12 21s7-6.2 7-11.2A7 7 0 0 0 5 9.8C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.8" r="2.4"/>'),
+  star: '<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="m12 3 2.7 5.8 6.3.8-4.6 4.3 1.2 6.3L12 17.1 6.4 20.2l1.2-6.3L3 9.6l6.3-.8Z"/></svg>' };
+
 function merchantCard(m) {
   const cv = coverFor(m), pic = img(cv.url, `${m.name}${credit(m)}`, 'store', { w: 400, h: 300, sizes: '(max-width: 600px) 85vw, 400px' });
   return `<a class="card" href="merchant.html?slug=${encodeURIComponent(m.slug)}">
-    <div class="card-img">${pic}<span class="tag ${m.is_partner ? 'tag-partner' : ''}">${esc(m.partner_label)}</span>${pictureBadge(cv.credit) ? `<span class="ill">${pictureBadge(cv.credit)}</span>` : ''}</div>
+    <div class="card-img">${pic}<span class="tag ${m.is_partner ? 'tag-partner' : ''}">${esc(m.partner_label)}</span>${pictureBadge(cv.credit) ? `<span class="ill">${pictureBadge(cv.credit)}</span>` : ''}${m.rating ? `<span class="rate">${ICON.star}${Number(m.rating).toFixed(1)}</span>` : ''}</div>
     <div class="card-body"><h3>${esc(m.name)}</h3>
-      <p>${m.rating ? '★ ' + Number(m.rating).toFixed(1) : 'New'}${eta(m) ? ' · ' + eta(m) : ''}</p>
-      <p>${esc(m.neighbourhood || m.service_area_name)}${m.delivery_fee > 0 ? ' · ' + money(m.delivery_fee) + ' delivery' : ''}</p></div></a>`;
+      ${eta(m) ? `<p class="meta">${ICON.clock}${eta(m)}</p>` : `<p class="meta">${ICON.clock}New on Pick &amp; Drop</p>`}
+      <p class="meta">${ICON.bike}${m.delivery_fee > 0 ? money(m.delivery_fee) + ' delivery fee' : 'Free delivery'}</p>
+      <p class="meta">${ICON.pin}${esc(m.neighbourhood || m.service_area_name)}</p></div></a>`;
 }
 
 function renderNav() {
